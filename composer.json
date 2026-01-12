@@ -1,0 +1,28 @@
+{
+    "name": "romanfedorskij/message-bus-spiral",
+    "description": "Message bus adaptive for spiral framework",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Wolfcharaa\\MessageBus\\Spiral\\": "src"
+        }
+    },
+    "authors": [
+        {
+            "name": "romanfedorskij",
+            "email": "markaryanroma@mail.ru"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "spiral/framework": "^3.14",
+        "spiral/roadrunner-bridge": "^3.8",
+        "romanfedorskij/message-bus": "^0.1.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "spiral/composer-publish-plugin": true
+        }
+    }
+}
