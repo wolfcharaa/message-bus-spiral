@@ -6,15 +6,34 @@ namespace Wolfcharaa\MessageBus\Spiral\Tests;
 
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
+use BackedEnum;
 use Psr\Clock\ClockInterface;
 use Spiral\Queue\OptionsInterface;
 use Spiral\Queue\QueueConnectionProviderInterface;
 use Spiral\Queue\QueueInterface;
+use Wolfcharaa\MessageBus\Envelope\DefaultEnvelopeSerializer;
+use Wolfcharaa\MessageBus\Envelope\Envelope;
 use Wolfcharaa\MessageBus\Envelope\SerializedEnvelope;
+use Wolfcharaa\MessageBus\Execution\HandlerExecutionResultInterface;
+use Wolfcharaa\MessageBus\Execution\SequentialExecutionStrategy;
+use Wolfcharaa\MessageBus\Invoker\InstantiatingServiceResolver;
+use Wolfcharaa\MessageBus\Invoker\ReflectionCallableInvoker;
+use Wolfcharaa\MessageBus\MessageBusInterface;
+use Wolfcharaa\MessageBus\PublishOptions;
 use Wolfcharaa\MessageBus\Queue\QueueMessage;
+use Wolfcharaa\MessageBus\Registry\CompiledMessageRegistry;
+use Wolfcharaa\MessageBus\Serialization\JsonMessageSerializer;
 use Wolfcharaa\MessageBus\Serialization\SerializedMessage;
+use Wolfcharaa\MessageBus\Spiral\Application\Bootloader\MessageBusBootloader;
+use Wolfcharaa\MessageBus\Spiral\Application\Config\MessageBusConfig;
+use Wolfcharaa\MessageBus\Spiral\Discovery\MessageBusCompilerListener;
 use Wolfcharaa\MessageBus\Spiral\Queue\SerializedEnvelopePayload;
 use Wolfcharaa\MessageBus\Spiral\Queue\SpiralQueueProvider;
+use Wolfcharaa\MessageBus\Spiral\Runtime\RuntimePlanQueueWorker;
+use Wolfcharaa\MessageBus\Spiral\Runtime\RuntimePlanRegistry;
+use Wolfcharaa\MessageBus\Spiral\Runtime\RuntimePlanSequentialExecutionStrategy;
+use Wolfcharaa\MessageBus\Spiral\Tests\Fixture\CompilePingAction;
+use Wolfcharaa\MessageBus\Spiral\Tests\Fixture\CompilePingMessage;
 
 final class SpiralQueueAdapterTest extends TestCase
 {
@@ -68,6 +87,75 @@ final class SpiralQueueAdapterTest extends TestCase
         self::assertSame('user.created', $queue->payload['message']['name'] ?? null);
     }
 
+    public function testCompilerListenerWritesCompiledRegistryFromTokenizerClasses(): void
+    {
+        $file = \sys_get_temp_dir() . '/message-bus-spiral-registry-' . \bin2hex(\random_bytes(6)) . '.php';
+        $listener = new MessageBusCompilerListener(new MessageBusConfig(['registryFile' => $file]));
+
+        $listener->listen(new \ReflectionClass(CompilePingAction::class));
+        $listener->finalize();
+        $listener->finalize();
+
+        $registry = CompiledMessageRegistry::fromFile($file);
+        $bindings = $registry->bindingsForMessage(CompilePingMessage::class);
+
+        self::assertFileExists($file);
+        self::assertCount(1, $bindings);
+        self::assertSame('compile.ping', $bindings[0]->bindingId);
+        self::assertSame(CompilePingAction::class, $bindings[0]->action);
+
+        @\unlink($file);
+    }
+
+    public function testBootloaderUsesRuntimePlanStrategyForDefaultSyncFlow(): void
+    {
+        $flow = (new MessageBusBootloader())->createFlowRegistry(
+            self::compileFixtureRegistry(),
+            new MessageBusConfig(),
+        )->get('default');
+
+        self::assertSame(RuntimePlanSequentialExecutionStrategy::class, $flow->strategy);
+    }
+
+    public function testBootloaderCanKeepCompiledStrategyWhenRuntimePlanIsDisabled(): void
+    {
+        $flow = (new MessageBusBootloader())->createFlowRegistry(
+            self::compileFixtureRegistry(),
+            new MessageBusConfig(['runtimePlan' => false]),
+        )->get('default');
+
+        self::assertSame(SequentialExecutionStrategy::class, $flow->strategy);
+    }
+
+    public function testRuntimePlanQueueWorkerExecutesBindingThroughRuntimePlan(): void
+    {
+        $registry = self::compileFixtureRegistry();
+        $serializer = new DefaultEnvelopeSerializer(new JsonMessageSerializer($registry));
+        $resolver = new InstantiatingServiceResolver();
+        $worker = new RuntimePlanQueueWorker(
+            new NullMessageBus(),
+            $registry,
+            $registry->flowRegistry(),
+            $serializer,
+            new ReflectionCallableInvoker($resolver),
+            $resolver,
+            new FrozenClock(),
+            new RuntimePlanSequentialExecutionStrategy($registry),
+        );
+
+        $payload = $serializer->serialize(new Envelope(
+            new CompilePingMessage('worker'),
+            'message-1',
+            'correlation-1',
+            null,
+            'default',
+            'compile.ping',
+            new DateTimeImmutable('2026-08-18T12:00:00+00:00'),
+        ));
+
+        self::assertSame('worker', $worker->handle($payload));
+    }
+
     private static function serializedEnvelope(): SerializedEnvelope
     {
         return new SerializedEnvelope(
@@ -85,6 +173,19 @@ final class SpiralQueueAdapterTest extends TestCase
             'user.created.email',
             new DateTimeImmutable('2026-08-18T12:00:00+00:00'),
         );
+    }
+
+    private static function compileFixtureRegistry(): RuntimePlanRegistry
+    {
+        $file = \sys_get_temp_dir() . '/message-bus-spiral-registry-' . \bin2hex(\random_bytes(6)) . '.php';
+        $listener = new MessageBusCompilerListener(new MessageBusConfig(['registryFile' => $file]));
+        $listener->listen(new \ReflectionClass(CompilePingAction::class));
+        $listener->finalize();
+
+        $registry = RuntimePlanRegistry::fromCompiled(CompiledMessageRegistry::fromFile($file));
+        @\unlink($file);
+
+        return $registry;
     }
 }
 
@@ -128,5 +229,54 @@ final class RecordingQueue implements QueueInterface
         $this->options = $options;
 
         return 'queue-id-1';
+    }
+}
+
+final class NullMessageBus implements MessageBusInterface
+{
+    public function dispatch(
+        object $message,
+        PublishOptions $options = new PublishOptions(),
+        ?Envelope $causation = null,
+    ): mixed {
+        throw new \LogicException('Null message bus should not dispatch messages in this test.');
+    }
+
+    public function dispatchAll(
+        object $message,
+        PublishOptions $options = new PublishOptions(),
+        ?Envelope $causation = null,
+    ): HandlerExecutionResultInterface {
+        throw new \LogicException('Null message bus should not dispatch messages in this test.');
+    }
+
+    public function publish(
+        object $message,
+        PublishOptions $options = new PublishOptions(),
+        ?Envelope $causation = null,
+    ): void {
+        throw new \LogicException('Null message bus should not publish messages in this test.');
+    }
+
+    public function dispatchPublishedSync(
+        object $message,
+        PublishOptions $options = new PublishOptions(),
+        ?Envelope $causation = null,
+    ): HandlerExecutionResultInterface {
+        throw new \LogicException('Null message bus should not dispatch messages in this test.');
+    }
+
+    public function dispatchBindingSync(
+        object $message,
+        string|BackedEnum $bindingId,
+        PublishOptions $options = new PublishOptions(),
+        ?Envelope $causation = null,
+    ): mixed {
+        throw new \LogicException('Null message bus should not dispatch messages in this test.');
+    }
+
+    public function dispatchEnvelopeToBinding(Envelope $envelope): mixed
+    {
+        throw new \LogicException('Null message bus should not dispatch messages in this test.');
     }
 }
