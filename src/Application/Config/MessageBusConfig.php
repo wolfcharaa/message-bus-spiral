@@ -6,28 +6,36 @@ namespace Wolfcharaa\MessageBus\Spiral\Application\Config;
 
 use Spiral\Core\Attribute\Singleton;
 use Spiral\Core\InjectableConfig;
-use Spiral\Interceptors\InterceptorInterface;
-use Wolfcharaa\MessageBus\Middleware\Middleware;
+use Wolfcharaa\MessageBus\Spiral\Application\Job\QueueHandlerJob;
 
 #[Singleton]
 final class MessageBusConfig extends InjectableConfig
 {
     public const CONFIG = 'message_bus';
-    public const MIDDLEWARE = 'middlewareGroups';
 
     /**
      * Default values for the config.
      * Will be merged with application config in runtime.
      *
-     * @var array{middlewareGroups: <string, array<class-string<Middleware|InterceptorInterface>>>}
+     * @var array{registryFile: ?string, queueJob: class-string}
      */
-    protected array $config = [];
+    protected array $config = [
+        'registryFile' => null,
+        'queueJob' => QueueHandlerJob::class,
+    ];
 
-    /**
-     * @return array{}|array<class-string<Middleware|InterceptorInterface>>
-     */
-    public function getMiddlewareGroup(string $group): array
+    public function getRegistryFile(): ?string
     {
-        return $this->config[self::MIDDLEWARE][$group] ?? [];
+        $file = $this->config['registryFile'] ?? null;
+
+        return \is_string($file) && $file !== '' ? $file : null;
+    }
+
+    /** @return class-string */
+    public function getQueueJob(): string
+    {
+        $job = $this->config['queueJob'] ?? QueueHandlerJob::class;
+
+        return \is_string($job) && $job !== '' ? $job : QueueHandlerJob::class;
     }
 }
