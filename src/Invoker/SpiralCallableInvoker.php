@@ -13,9 +13,8 @@ final class SpiralCallableInvoker implements CallableInvokerInterface
     {
     }
 
-    public function invoke(string $class, string $method, array $arguments = []): mixed
+    public function invoke(string|object $service, string $method, array $arguments = []): mixed
     {
-        return $this->invoker->invoke([$class, $method], $arguments);
+        return $this->invoker->invoke([$service, $method], $arguments);
     }
 }
-

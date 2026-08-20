@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Wolfcharaa\MessageBus\Spiral\Runtime;
 
 use Psr\Clock\ClockInterface;
+use Psr\Container\ContainerInterface;
 use RuntimeException;
 use Wolfcharaa\MessageBus\Context\MessageContextFactoryInterface;
 use Wolfcharaa\MessageBus\Context\MessageContextInterface;
@@ -16,11 +17,11 @@ use Wolfcharaa\MessageBus\Execution\ExecutionRequest;
 use Wolfcharaa\MessageBus\Flow\FlowDefinition;
 use Wolfcharaa\MessageBus\Flow\FlowRegistry;
 use Wolfcharaa\MessageBus\Invoker\CallableInvokerInterface;
-use Wolfcharaa\MessageBus\Invoker\ServiceResolverInterface;
 use Wolfcharaa\MessageBus\MessageBusInterface;
 use Wolfcharaa\MessageBus\PublishOptions;
 use Wolfcharaa\MessageBus\Queue\QueueProviderInterface;
 use Wolfcharaa\MessageBus\Queue\QueueWorkerInterface;
+use Wolfcharaa\MessageBus\Worker\WorkerRuntimeControlScope;
 
 final class RuntimePlanQueueWorker implements QueueWorkerInterface
 {
@@ -30,7 +31,7 @@ final class RuntimePlanQueueWorker implements QueueWorkerInterface
         private readonly FlowRegistry $flows,
         private readonly EnvelopeSerializerInterface $serializer,
         private readonly CallableInvokerInterface $invoker,
-        private readonly ServiceResolverInterface $resolver,
+        private readonly ContainerInterface $container,
         private readonly ClockInterface $clock,
         private readonly RuntimePlanSequentialExecutionStrategy $strategy,
         private readonly ?QueueProviderInterface $queueProvider = null,
@@ -65,7 +66,7 @@ final class RuntimePlanQueueWorker implements QueueWorkerInterface
             throw new RuntimeException(\sprintf('Flow `%s` has no context factory.', $flow->key));
         }
 
-        $factory = $this->resolver->get($flow->contextFactory);
+        $factory = $this->container->get($flow->contextFactory);
 
         if (!$factory instanceof MessageContextFactoryInterface) {
             throw new RuntimeException(\sprintf(
@@ -76,7 +77,7 @@ final class RuntimePlanQueueWorker implements QueueWorkerInterface
             ));
         }
 
-        $context = $factory->create($this->messageBus, $envelope, $flow);
+        $context = $factory->create($this->messageBus, $envelope, $flow, WorkerRuntimeControlScope::current());
 
         if (!$context instanceof $flow->contextInterface) {
             throw new RuntimeException(\sprintf(

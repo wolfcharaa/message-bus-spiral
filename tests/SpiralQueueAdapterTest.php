@@ -4,22 +4,25 @@ declare(strict_types=1);
 
 namespace Wolfcharaa\MessageBus\Spiral\Tests;
 
+use BackedEnum;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
-use BackedEnum;
 use Psr\Clock\ClockInterface;
+use Psr\Container\ContainerInterface;
+use Psr\Container\NotFoundExceptionInterface;
 use Spiral\Queue\OptionsInterface;
 use Spiral\Queue\QueueConnectionProviderInterface;
 use Spiral\Queue\QueueInterface;
+use Wolfcharaa\MessageBus\Context\DefaultMessageContextFactory;
 use Wolfcharaa\MessageBus\Envelope\DefaultEnvelopeSerializer;
 use Wolfcharaa\MessageBus\Envelope\Envelope;
 use Wolfcharaa\MessageBus\Envelope\SerializedEnvelope;
 use Wolfcharaa\MessageBus\Execution\HandlerExecutionResultInterface;
 use Wolfcharaa\MessageBus\Execution\SequentialExecutionStrategy;
-use Wolfcharaa\MessageBus\Invoker\InstantiatingServiceResolver;
 use Wolfcharaa\MessageBus\Invoker\ReflectionCallableInvoker;
 use Wolfcharaa\MessageBus\MessageBusInterface;
 use Wolfcharaa\MessageBus\PublishOptions;
+use Wolfcharaa\MessageBus\PublishResult;
 use Wolfcharaa\MessageBus\Queue\QueueMessage;
 use Wolfcharaa\MessageBus\Registry\CompiledMessageRegistry;
 use Wolfcharaa\MessageBus\Serialization\JsonMessageSerializer;
@@ -131,14 +134,17 @@ final class SpiralQueueAdapterTest extends TestCase
     {
         $registry = self::compileFixtureRegistry();
         $serializer = new DefaultEnvelopeSerializer(new JsonMessageSerializer($registry));
-        $resolver = new InstantiatingServiceResolver();
+        $container = new SpiralTestContainer([
+            CompilePingAction::class => new CompilePingAction(),
+            DefaultMessageContextFactory::class => new DefaultMessageContextFactory(),
+        ]);
         $worker = new RuntimePlanQueueWorker(
             new NullMessageBus(),
             $registry,
             $registry->flowRegistry(),
             $serializer,
-            new ReflectionCallableInvoker($resolver),
-            $resolver,
+            new ReflectionCallableInvoker($container),
+            $container,
             new FrozenClock(),
             new RuntimePlanSequentialExecutionStrategy($registry),
         );
@@ -187,6 +193,30 @@ final class SpiralQueueAdapterTest extends TestCase
 
         return $registry;
     }
+}
+
+final class SpiralTestContainer implements ContainerInterface
+{
+    /** @param array<string, object> $entries */
+    public function __construct(private readonly array $entries)
+    {
+    }
+
+    public function get(string $id): object
+    {
+        return $this->entries[$id] ?? throw new SpiralTestContainerNotFound(
+            \sprintf('Test service `%s` was not found.', $id),
+        );
+    }
+
+    public function has(string $id): bool
+    {
+        return \array_key_exists($id, $this->entries);
+    }
+}
+
+final class SpiralTestContainerNotFound extends \RuntimeException implements NotFoundExceptionInterface
+{
 }
 
 final class FrozenClock implements ClockInterface
@@ -254,7 +284,15 @@ final class NullMessageBus implements MessageBusInterface
         object $message,
         PublishOptions $options = new PublishOptions(),
         ?Envelope $causation = null,
-    ): void {
+    ): PublishResult {
+        throw new \LogicException('Null message bus should not publish messages in this test.');
+    }
+
+    public function publishMany(
+        iterable $messages,
+        PublishOptions $options = new PublishOptions(),
+        ?Envelope $causation = null,
+    ): PublishResult {
         throw new \LogicException('Null message bus should not publish messages in this test.');
     }
 

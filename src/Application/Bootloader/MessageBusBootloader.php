@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Wolfcharaa\MessageBus\Spiral\Application\Bootloader;
 
 use Psr\Clock\ClockInterface;
+use Psr\Container\ContainerInterface;
 use Spiral\Boot\Bootloader\Bootloader;
 use Spiral\Boot\Environment;
 use Spiral\Core\Attribute\Singleton;
@@ -12,14 +13,13 @@ use Spiral\Queue\Bootloader\QueueBootloader;
 use Spiral\Queue\QueueConnectionProviderInterface;
 use Spiral\Tokenizer\Bootloader\TokenizerListenerBootloader;
 use Wolfcharaa\MessageBus\Clock\WallClock;
+use Wolfcharaa\MessageBus\Context\DefaultMessageContextFactory;
 use Wolfcharaa\MessageBus\Envelope\DefaultEnvelopeSerializer;
 use Wolfcharaa\MessageBus\Envelope\EnvelopeSerializerInterface;
-use Wolfcharaa\MessageBus\Flow\FlowRegistry;
 use Wolfcharaa\MessageBus\Execution\QueueExecutionStrategy;
 use Wolfcharaa\MessageBus\Execution\SequentialExecutionStrategy;
+use Wolfcharaa\MessageBus\Flow\FlowRegistry;
 use Wolfcharaa\MessageBus\Invoker\CallableInvokerInterface;
-use Wolfcharaa\MessageBus\Invoker\ServiceResolverInterface;
-use Wolfcharaa\MessageBus\Message\IncrementalMessageIdGenerator;
 use Wolfcharaa\MessageBus\Message\MessageIdGenerator;
 use Wolfcharaa\MessageBus\Message\RandomMessageIdGenerator;
 use Wolfcharaa\MessageBus\MessageBus;
@@ -34,10 +34,9 @@ use Wolfcharaa\MessageBus\Spiral\Application\Config\MessageBusConfig;
 use Wolfcharaa\MessageBus\Spiral\Application\Job\QueueHandlerJob;
 use Wolfcharaa\MessageBus\Spiral\Discovery\MessageBusCompilerListener;
 use Wolfcharaa\MessageBus\Spiral\Invoker\SpiralCallableInvoker;
-use Wolfcharaa\MessageBus\Spiral\Invoker\SpiralServiceResolver;
 use Wolfcharaa\MessageBus\Spiral\Queue\SpiralQueueProvider;
-use Wolfcharaa\MessageBus\Spiral\Runtime\RuntimePlanQueueWorker;
 use Wolfcharaa\MessageBus\Spiral\Runtime\RuntimePlanQueueExecutionStrategy;
+use Wolfcharaa\MessageBus\Spiral\Runtime\RuntimePlanQueueWorker;
 use Wolfcharaa\MessageBus\Spiral\Runtime\RuntimePlanRegistry;
 use Wolfcharaa\MessageBus\Spiral\Runtime\RuntimePlanSequentialExecutionStrategy;
 
@@ -56,7 +55,7 @@ final class MessageBusBootloader extends Bootloader
     protected const SINGLETONS = [
         ClockInterface::class => WallClock::class,
         CallableInvokerInterface::class => SpiralCallableInvoker::class,
-        ServiceResolverInterface::class => SpiralServiceResolver::class,
+        DefaultMessageContextFactory::class => DefaultMessageContextFactory::class,
         QueueProviderInterface::class => [self::class, 'createQueueProvider'],
         QueueWorkerInterface::class => RuntimePlanQueueWorker::class,
         RuntimePlanRegistry::class => [self::class, 'createRegistry'],
@@ -127,29 +126,25 @@ final class MessageBusBootloader extends Bootloader
         QueueProviderInterface $queueProvider,
         EnvelopeSerializerInterface $serializer,
         CallableInvokerInterface $invoker,
-        ServiceResolverInterface $resolver,
+        ContainerInterface $container,
         MessageIdGenerator $messageIdGenerator,
         ClockInterface $clock,
     ): MessageBusInterface {
         return new MessageBus(
-            $registry,
-            $flows,
-            $queueProvider,
-            $serializer,
-            $invoker,
-            $resolver,
-            $messageIdGenerator,
-            $clock,
+            registry: $registry,
+            flows: $flows,
+            container: $container,
+            queueProvider: $queueProvider,
+            envelopeSerializer: $serializer,
+            invoker: $invoker,
+            messageIdGenerator: $messageIdGenerator,
+            clock: $clock,
         );
     }
 
     protected function createMessageId(Environment $environment): MessageIdGenerator
     {
-        if ($environment->get('APP_ENV') === 'prod') {
-            return new RandomMessageIdGenerator();
-        }
-
-        return new IncrementalMessageIdGenerator();
+        return new RandomMessageIdGenerator();
     }
 
     private function withRuntimeStrategies(FlowRegistry $flows): FlowRegistry

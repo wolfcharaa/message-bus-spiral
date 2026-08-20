@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Wolfcharaa\MessageBus\Spiral\Invoker;
 
 use Psr\Container\ContainerInterface;
-use Wolfcharaa\MessageBus\Invoker\ServiceResolverInterface;
 
-final class SpiralServiceResolver implements ServiceResolverInterface
+/**
+ * Legacy wrapper kept for applications that used it directly before MessageBus v5.
+ * Core v5 uses PSR-11 container directly and no longer exposes ServiceResolverInterface.
+ */
+final class SpiralServiceResolver
 {
     public function __construct(private readonly ContainerInterface $container)
     {
@@ -24,4 +27,3 @@ final class SpiralServiceResolver implements ServiceResolverInterface
         return $service;
     }
 }
-
