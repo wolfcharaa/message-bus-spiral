@@ -1,10 +1,10 @@
 # MessageBus Spiral
 
-`romanfedorskij/message-bus-spiral` — адаптер Spiral Framework для `romanfedorskij/message-bus` v4.
+`romanfedorskij/message-bus-spiral` — адаптер Spiral Framework для `romanfedorskij/message-bus` v5.
 
-Поддерживаемая версия Spiral Framework: `^3.16`.
+Поддерживаемые версии: Spiral Framework `^3.16`, RoadRunner Bridge `^3.8 || ^4.0`.
 
-Пакет не содержит отдельного registry builder. В v4 связи `message -> action` компилируются основным `message-bus`, а Spiral-пакет подключает:
+Пакет не содержит отдельного registry builder. В v5 связи `message -> action` компилируются основным `message-bus`, а Spiral-пакет подключает:
 
 - `Spiral\Tokenizer` listener для поиска классов с attributes;
 - compiler listener, который пишет compiled registry в runtime-файл;

@@ -9,12 +9,13 @@
             "email": "markaryanroma@mail.ru"
         }
     ],
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "require": {
         "php": "^8.3",
         "spiral/framework": "^3.16",
-        "spiral/roadrunner-bridge": "^3.8",
-        "romanfedorskij/message-bus": "^5.0",
+        "spiral/roadrunner-bridge": "^3.8 || ^4.0",
+        "romanfedorskij/message-bus": "^5.1",
         "nyholm/psr7": "^1.8"
     },
     "autoload": {
