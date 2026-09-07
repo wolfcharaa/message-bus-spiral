@@ -8,6 +8,7 @@ use Spiral\Core\Attribute\Singleton;
 use Spiral\Core\InjectableConfig;
 use Wolfcharaa\MessageBus\Flow\FlowDefinition;
 use Wolfcharaa\MessageBus\Flow\FlowRegistry;
+use Wolfcharaa\MessageBus\Registry\MessageRegistryCompilerOptions;
 use Wolfcharaa\MessageBus\Spiral\Application\Job\QueueHandlerJob;
 
 #[Singleton]
@@ -19,13 +20,20 @@ final class MessageBusConfig extends InjectableConfig
      * Default values for the config.
      * Will be merged with application config in runtime.
      *
-     * @var array{registryFile: ?string, queueJob: class-string, runtimePlan: bool, flows: FlowRegistry|array<FlowDefinition|array<string, mixed>>}
+     * @var array{
+     *     registryFile: ?string,
+     *     queueJob: class-string,
+     *     runtimePlan: bool,
+     *     flows: FlowRegistry|array<FlowDefinition|array<string, mixed>>,
+     *     compilerOptions: ?MessageRegistryCompilerOptions
+     * }
      */
     protected array $config = [
         'registryFile' => null,
         'queueJob' => QueueHandlerJob::class,
         'runtimePlan' => true,
         'flows' => [],
+        'compilerOptions' => null,
     ];
 
     public function getRegistryFile(): ?string
@@ -61,7 +69,10 @@ final class MessageBusConfig extends InjectableConfig
         }
 
         if ($flows === []) {
-            return new FlowRegistry();
+            return new FlowRegistry(
+                FlowDefinition::sync('default'),
+                FlowDefinition::sync('domain_capability'),
+            );
         }
 
         $definitions = [];
@@ -80,5 +91,22 @@ final class MessageBusConfig extends InjectableConfig
         }
 
         return new FlowRegistry(...$definitions);
+    }
+
+    public function getCompilerOptions(): MessageRegistryCompilerOptions
+    {
+        $options = $this->config['compilerOptions'] ?? null;
+
+        if ($options === null) {
+            return new MessageRegistryCompilerOptions();
+        }
+
+        if (!$options instanceof MessageRegistryCompilerOptions) {
+            throw new \InvalidArgumentException(
+                'MessageBus config `compilerOptions` must be MessageRegistryCompilerOptions or null.',
+            );
+        }
+
+        return $options;
     }
 }

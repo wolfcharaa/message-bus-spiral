@@ -25,6 +25,9 @@ use Wolfcharaa\MessageBus\PublishOptions;
 use Wolfcharaa\MessageBus\PublishResult;
 use Wolfcharaa\MessageBus\Queue\QueueMessage;
 use Wolfcharaa\MessageBus\Registry\CompiledMessageRegistry;
+use Wolfcharaa\MessageBus\Registry\HandlerInvocationMode;
+use Wolfcharaa\MessageBus\Registry\HandlerRole;
+use Wolfcharaa\MessageBus\Registry\MessageRegistryCompilerOptions;
 use Wolfcharaa\MessageBus\Serialization\JsonMessageSerializer;
 use Wolfcharaa\MessageBus\Serialization\SerializedMessage;
 use Wolfcharaa\MessageBus\Spiral\Application\Bootloader\MessageBusBootloader;
@@ -36,6 +39,8 @@ use Wolfcharaa\MessageBus\Spiral\Runtime\RuntimePlanQueueWorker;
 use Wolfcharaa\MessageBus\Spiral\Runtime\RuntimePlanRegistry;
 use Wolfcharaa\MessageBus\Spiral\Runtime\RuntimePlanSequentialExecutionStrategy;
 use Wolfcharaa\MessageBus\Spiral\Tests\Fixture\CompilePingAction;
+use Wolfcharaa\MessageBus\Spiral\Tests\Fixture\CompileDomainLookupHandler;
+use Wolfcharaa\MessageBus\Spiral\Tests\Fixture\CompileDomainLookupMessage;
 use Wolfcharaa\MessageBus\Spiral\Tests\Fixture\CompilePingMessage;
 
 final class SpiralQueueAdapterTest extends TestCase
@@ -110,6 +115,33 @@ final class SpiralQueueAdapterTest extends TestCase
         @\unlink($file);
     }
 
+    public function testCompilerListenerWritesContextlessDomainHandlerToDefaultDomainFlow(): void
+    {
+        $file = \sys_get_temp_dir() . '/message-bus-spiral-registry-' . \bin2hex(\random_bytes(6)) . '.php';
+        $listener = new MessageBusCompilerListener(new MessageBusConfig(['registryFile' => $file]));
+
+        $listener->listen(new \ReflectionClass(CompileDomainLookupHandler::class));
+        $listener->finalize();
+
+        $registry = CompiledMessageRegistry::fromFile($file);
+        $binding = $registry->bindingsForMessage(CompileDomainLookupMessage::class)[0] ?? null;
+
+        self::assertNotNull($binding);
+        self::assertSame('domain_capability', $binding->flow);
+        self::assertSame(HandlerRole::Domain, $binding->role);
+        self::assertSame(HandlerInvocationMode::Contextless, $binding->invocationMode);
+        self::assertTrue($registry->definition()->flows->get('domain_capability')->isSync());
+
+        @\unlink($file);
+    }
+
+    public function testConfigExposesCompilerOptions(): void
+    {
+        $options = new MessageRegistryCompilerOptions(failOnWarning: true);
+
+        self::assertSame($options, (new MessageBusConfig(['compilerOptions' => $options]))->getCompilerOptions());
+    }
+
     public function testBootloaderUsesRuntimePlanStrategyForDefaultSyncFlow(): void
     {
         $flow = (new MessageBusBootloader())->createFlowRegistry(
@@ -162,6 +194,38 @@ final class SpiralQueueAdapterTest extends TestCase
         self::assertSame('worker', $worker->handle($payload));
     }
 
+    public function testRuntimePlanQueueWorkerExecutesDomainHandlerWithoutContextArgument(): void
+    {
+        $registry = self::compileFixtureRegistry();
+        $serializer = new DefaultEnvelopeSerializer(new JsonMessageSerializer($registry));
+        $container = new SpiralTestContainer([
+            CompileDomainLookupHandler::class => new CompileDomainLookupHandler(),
+            DefaultMessageContextFactory::class => new DefaultMessageContextFactory(),
+        ]);
+        $worker = new RuntimePlanQueueWorker(
+            new NullMessageBus(),
+            $registry,
+            $registry->flowRegistry(),
+            $serializer,
+            new ReflectionCallableInvoker($container),
+            $container,
+            new FrozenClock(),
+            new RuntimePlanSequentialExecutionStrategy($registry),
+        );
+
+        $payload = $serializer->serialize(new Envelope(
+            new CompileDomainLookupMessage(42),
+            'message-domain-1',
+            'correlation-domain-1',
+            null,
+            'domain_capability',
+            'compile.domain_lookup',
+            new DateTimeImmutable('2026-08-18T12:00:00+00:00'),
+        ));
+
+        self::assertSame('domain:42', $worker->handle($payload));
+    }
+
     private static function serializedEnvelope(): SerializedEnvelope
     {
         return new SerializedEnvelope(
@@ -186,6 +250,7 @@ final class SpiralQueueAdapterTest extends TestCase
         $file = \sys_get_temp_dir() . '/message-bus-spiral-registry-' . \bin2hex(\random_bytes(6)) . '.php';
         $listener = new MessageBusCompilerListener(new MessageBusConfig(['registryFile' => $file]));
         $listener->listen(new \ReflectionClass(CompilePingAction::class));
+        $listener->listen(new \ReflectionClass(CompileDomainLookupHandler::class));
         $listener->finalize();
 
         $registry = RuntimePlanRegistry::fromCompiled(CompiledMessageRegistry::fromFile($file));

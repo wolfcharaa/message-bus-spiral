@@ -1,6 +1,6 @@
 # MessageBus Spiral
 
-`romanfedorskij/message-bus-spiral` — адаптер Spiral Framework для `romanfedorskij/message-bus` v5.
+`romanfedorskij/message-bus-spiral` — адаптер Spiral Framework для `romanfedorskij/message-bus` v5.2.
 
 Поддерживаемые версии: Spiral Framework `^3.16`, RoadRunner Bridge `^3.8 || ^4.0`.
 
@@ -29,17 +29,25 @@ composer require romanfedorskij/message-bus-spiral
 declare(strict_types=1);
 
 use Wolfcharaa\MessageBus\Flow\FlowDefinition;
+use Wolfcharaa\MessageBus\Registry\DeprecationDiagnosticsMode;
+use Wolfcharaa\MessageBus\Registry\MessageRegistryCompilerOptions;
 use Wolfcharaa\MessageBus\Spiral\Application\Job\QueueHandlerJob;
 
 return [
     'registryFile' => directory('runtime') . 'cache/message_bus_registry.php',
     'queueJob' => QueueHandlerJob::class,
     'runtimePlan' => true,
+    'compilerOptions' => new MessageRegistryCompilerOptions(
+        deprecations: DeprecationDiagnosticsMode::Ignore,
+    ),
     'flows' => [
         FlowDefinition::sync('default'),
+        FlowDefinition::sync('domain_capability'),
     ],
 ];
 ```
+
+`compilerOptions` необязателен. По умолчанию deprecation diagnostics отключены, поэтому production-компиляция не заполняет лог предупреждениями.
 
 Файл подключается как `message_bus` config.
 
@@ -50,6 +58,7 @@ Listener получает классы с attributes:
 
 - `CommandHandler`;
 - `QueryHandler`;
+- `DomainHandler`;
 - `EventSubscriber`;
 - `MessageAlias`.
 
@@ -104,6 +113,7 @@ PHP `serialize()` не используется.
 - [Command handler и compiled registry](docs/examples/02-command-handler.md)
 - [Async flow через Spiral Queue](docs/examples/03-async-queue.md)
 - [Runtime plan в long-running процессе](docs/examples/04-runtime-plan.md)
+- [Contextless DomainHandler для capability](docs/examples/05-domain-handler.md)
 
 ## Тесты
 

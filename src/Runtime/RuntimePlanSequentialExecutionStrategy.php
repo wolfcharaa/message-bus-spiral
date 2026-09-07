@@ -25,6 +25,7 @@ final class RuntimePlanSequentialExecutionStrategy implements HandlerExecutionSt
 
         foreach ($this->plans->plansForBindings($request->bindings) as $plan) {
             try {
+                // TODO(next-major): use the Interceptor pipeline once the core removes the deprecated Middleware facade.
                 $pipeline = new Pipeline(
                     $plan->binding,
                     $request->context,

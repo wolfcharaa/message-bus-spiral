@@ -9,6 +9,7 @@ use Spiral\Core\Attribute\Singleton;
 use Spiral\Tokenizer\Attribute\TargetAttribute;
 use Spiral\Tokenizer\TokenizationListenerInterface;
 use Wolfcharaa\MessageBus\Attribute\CommandHandler;
+use Wolfcharaa\MessageBus\Attribute\DomainHandler;
 use Wolfcharaa\MessageBus\Attribute\EventSubscriber;
 use Wolfcharaa\MessageBus\Attribute\MessageAlias;
 use Wolfcharaa\MessageBus\Attribute\QueryHandler;
@@ -20,6 +21,7 @@ use Wolfcharaa\MessageBus\Spiral\Application\Config\MessageBusConfig;
 #[Singleton]
 #[TargetAttribute(CommandHandler::class)]
 #[TargetAttribute(QueryHandler::class)]
+#[TargetAttribute(DomainHandler::class)]
 #[TargetAttribute(EventSubscriber::class)]
 #[TargetAttribute(MessageAlias::class)]
 final class MessageBusCompilerListener implements TokenizationListenerInterface
@@ -63,6 +65,7 @@ final class MessageBusCompilerListener implements TokenizationListenerInterface
         $definition = $this->compiler->compile(
             new ClassListProvider(\array_values($this->classes)),
             $this->config->getFlowRegistry(),
+            options: $this->config->getCompilerOptions(),
         );
 
         $this->write($file, $this->dumper->dump($definition));

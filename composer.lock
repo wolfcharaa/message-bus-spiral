@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "262a8c2693fe54be45081d6fba77037c",
+    "content-hash": "8d403d7a3e26d3e5c27aa5be12a5b5a3",
     "packages": [
         {
             "name": "brick/math",
@@ -2435,16 +2435,16 @@
         },
         {
             "name": "romanfedorskij/message-bus",
-            "version": "v5.1.1",
+            "version": "v5.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/wolfcharaa/message-bus.git",
-                "reference": "9757a720f149696b9bc22941ce1af1273f561579"
+                "reference": "085d3344a87d52e3f8bf6770f14f7bd9a9510260"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/wolfcharaa/message-bus/zipball/9757a720f149696b9bc22941ce1af1273f561579",
-                "reference": "9757a720f149696b9bc22941ce1af1273f561579",
+                "url": "https://api.github.com/repos/wolfcharaa/message-bus/zipball/085d3344a87d52e3f8bf6770f14f7bd9a9510260",
+                "reference": "085d3344a87d52e3f8bf6770f14f7bd9a9510260",
                 "shasum": ""
             },
             "require": {
@@ -2492,9 +2492,9 @@
             "description": "Attribute-driven PHP message bus with flows, compiled registry, queue transport contracts, and immutable envelopes",
             "support": {
                 "issues": "https://github.com/wolfcharaa/message-bus/issues",
-                "source": "https://github.com/wolfcharaa/message-bus/tree/v5.1.1"
+                "source": "https://github.com/wolfcharaa/message-bus/tree/v5.2.0"
             },
-            "time": "2026-08-21T11:52:25+00:00"
+            "time": "2026-09-07T10:34:41+00:00"
         },
         {
             "name": "spiral/attributes",
