@@ -48,6 +48,6 @@ return [
 
 `registryFile` должен указывать на writable runtime-файл. При boot приложения Spiral Tokenizer найдёт классы с attributes, core compiler проверит контракт, а listener сохранит compiled registry в этот файл.
 
-Если приложение передаёт собственный список `flows`, `domain_capability` нужно зарегистрировать явно для обработчиков `DomainHandler`. При пустом списке адаптер добавляет `default` и `domain_capability` автоматически.
+Если приложение передаёт собственный список `flows`, `domain_capability` нужно зарегистрировать явно для contextless capability handlers. При пустом списке адаптер добавляет `default` и `domain_capability` автоматически.
 
 Runtime больше не сканирует проект при каждом обращении к `MessageBusInterface`; он читает готовый compiled registry.

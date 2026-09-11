@@ -1,13 +1,13 @@
-# Domain capability без application context
+# Capability query без application context
 
-`DomainHandler` предназначен для небольших доменных сценариев чтения и записи. Его handler получает только публичный message и не принимает `MessageContextInterface`.
+`QueryHandler(contextAware: false)` подходит для небольших capability-сценариев чтения, где handler получает только публичный message и не принимает `MessageContextInterface`.
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-use Wolfcharaa\MessageBus\Attribute\DomainHandler;
+use Wolfcharaa\MessageBus\Attribute\QueryHandler;
 
 final readonly class FindAddressById
 {
@@ -16,7 +16,7 @@ final readonly class FindAddressById
     }
 }
 
-#[DomainHandler(FindAddressById::class, bindingId: 'address.find_by_id')]
+#[QueryHandler(FindAddressById::class, flow: 'domain_capability', bindingId: 'address.find_by_id', contextAware: false)]
 final readonly class FindAddressByIdHandler
 {
     public function __construct(private FindAddressByIdReadInterface $addresses)
@@ -30,7 +30,7 @@ final readonly class FindAddressByIdHandler
 }
 ```
 
-По умолчанию binding использует синхронный flow `domain_capability`. При явном списке flows добавьте его в `message_bus.php`:
+При явном списке flows добавьте `domain_capability` в `message_bus.php`:
 
 ```php
 'flows' => [
@@ -39,4 +39,4 @@ final readonly class FindAddressByIdHandler
 ],
 ```
 
-Spiral Tokenizer обнаруживает `DomainHandler`, core compiler проверяет contextless-сигнатуру, а runtime plan вызывает handler без передачи application context.
+Spiral Tokenizer обнаруживает `QueryHandler`, core compiler проверяет contextless-сигнатуру, а runtime plan вызывает handler без передачи application context.

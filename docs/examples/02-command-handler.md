@@ -1,6 +1,6 @@
 # Command handler
 
-MessageBus v4 описывает связи через core attributes. Spiral-адаптер помогает найти эти классы через `Spiral\Tokenizer` и выполнить action через Spiral DI.
+MessageBus v6 описывает связи через core attributes. Spiral-адаптер помогает найти эти классы через `Spiral\Tokenizer` и выполнить action через Spiral DI.
 
 ## Message
 
@@ -13,8 +13,7 @@ namespace App\Application\User;
 
 use Wolfcharaa\MessageBus\Message\Command;
 
-/** @implements Command<CreateUserResult> */
-final readonly class CreateUserMessage implements Command
+final readonly class CreateUserCommand implements Command
 {
     public function __construct(
         public string $email,
@@ -35,7 +34,7 @@ namespace App\Application\User;
 use Wolfcharaa\MessageBus\Attribute\CommandHandler;
 use Wolfcharaa\MessageBus\Context\MessageContextInterface;
 
-#[CommandHandler(CreateUserMessage::class, bindingId: 'user.create')]
+#[CommandHandler(CreateUserCommand::class, bindingId: 'user.create')]
 final class CreateUserAction
 {
     public function __construct(
@@ -43,14 +42,14 @@ final class CreateUserAction
     ) {
     }
 
-    public function __invoke(CreateUserMessage $message, MessageContextInterface $context): CreateUserResult
+    public function __invoke(CreateUserCommand $message, MessageContextInterface $context): void
     {
-        return $this->storage->create($message->email);
+        $this->storage->create($message->email);
     }
 }
 ```
 
-`bindingId` нужен как стабильное имя связи. Для sync command без явного `bindingId` core compiler может создать auto binding, но для async flow стабильный `bindingId` обязателен.
+`bindingId` нужен как стабильное имя связи. В v6 command handler выполняет правило обработки и возвращает `void`. Если вызывающей стороне нужен результат, используйте `QueryHandler`.
 
 ## Использование
 
@@ -68,9 +67,9 @@ final class CreateUserController
     ) {
     }
 
-    public function __invoke(): CreateUserResult
+    public function __invoke(): void
     {
-        return $this->bus->dispatch(new CreateUserMessage('user@example.test'));
+        $this->bus->dispatch(new CreateUserCommand('user@example.test'));
     }
 }
 ```

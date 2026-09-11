@@ -26,7 +26,7 @@ use Wolfcharaa\MessageBus\PublishResult;
 use Wolfcharaa\MessageBus\Queue\QueueMessage;
 use Wolfcharaa\MessageBus\Registry\CompiledMessageRegistry;
 use Wolfcharaa\MessageBus\Registry\HandlerInvocationMode;
-use Wolfcharaa\MessageBus\Registry\HandlerRole;
+use Wolfcharaa\MessageBus\Registry\HandlerKind;
 use Wolfcharaa\MessageBus\Registry\MessageRegistryCompilerOptions;
 use Wolfcharaa\MessageBus\Serialization\JsonMessageSerializer;
 use Wolfcharaa\MessageBus\Serialization\SerializedMessage;
@@ -115,7 +115,7 @@ final class SpiralQueueAdapterTest extends TestCase
         @\unlink($file);
     }
 
-    public function testCompilerListenerWritesContextlessDomainHandlerToDefaultDomainFlow(): void
+    public function testCompilerListenerWritesContextlessQueryHandlerToDomainCapabilityFlow(): void
     {
         $file = \sys_get_temp_dir() . '/message-bus-spiral-registry-' . \bin2hex(\random_bytes(6)) . '.php';
         $listener = new MessageBusCompilerListener(new MessageBusConfig(['registryFile' => $file]));
@@ -128,7 +128,7 @@ final class SpiralQueueAdapterTest extends TestCase
 
         self::assertNotNull($binding);
         self::assertSame('domain_capability', $binding->flow);
-        self::assertSame(HandlerRole::Domain, $binding->role);
+        self::assertSame(HandlerKind::Query, $binding->kind);
         self::assertSame(HandlerInvocationMode::Contextless, $binding->invocationMode);
         self::assertTrue($registry->definition()->flows->get('domain_capability')->isSync());
 
@@ -194,7 +194,7 @@ final class SpiralQueueAdapterTest extends TestCase
         self::assertSame('worker', $worker->handle($payload));
     }
 
-    public function testRuntimePlanQueueWorkerExecutesDomainHandlerWithoutContextArgument(): void
+    public function testRuntimePlanQueueWorkerExecutesContextlessQueryHandlerWithoutContextArgument(): void
     {
         $registry = self::compileFixtureRegistry();
         $serializer = new DefaultEnvelopeSerializer(new JsonMessageSerializer($registry));

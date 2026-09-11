@@ -9,7 +9,7 @@ use Wolfcharaa\MessageBus\Execution\HandlerExecutionResult;
 use Wolfcharaa\MessageBus\Execution\HandlerExecutionResultInterface;
 use Wolfcharaa\MessageBus\Execution\HandlerExecutionStrategyInterface;
 use Wolfcharaa\MessageBus\Execution\HandlerResult;
-use Wolfcharaa\MessageBus\Middleware\Pipeline;
+use Wolfcharaa\MessageBus\Interceptor\Pipeline;
 
 final class RuntimePlanSequentialExecutionStrategy implements HandlerExecutionStrategyInterface
 {
@@ -25,7 +25,6 @@ final class RuntimePlanSequentialExecutionStrategy implements HandlerExecutionSt
 
         foreach ($this->plans->plansForBindings($request->bindings) as $plan) {
             try {
-                // TODO(next-major): use the Interceptor pipeline once the core removes the deprecated Middleware facade.
                 $pipeline = new Pipeline(
                     $plan->binding,
                     $request->context,
